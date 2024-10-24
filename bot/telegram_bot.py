@@ -60,6 +60,8 @@ class ChatGPTTelegramBot:
         self.last_message = {}
         self.inline_queries_cache = {}
 
+        print(self.config['allowed_user_ids'])
+
     async def help(self, update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         """
         Shows the help menu.
