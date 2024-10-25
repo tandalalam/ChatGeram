@@ -30,8 +30,8 @@ def main():
     model = os.environ.get('OPENAI_MODEL', 'gpt-3.5-turbo')
     functions_available = are_functions_available(model=model)
     max_tokens_default = default_max_tokens(model=model)
+
     openai_config = {
-        'base_url': os.environ.get('OPENAI_BASE_URL', 'https://api.metisai.ir/api/openai/v1'),
         'api_key': os.environ['OPENAI_API_KEY'],
         'show_usage': os.environ.get('SHOW_USAGE', 'false').lower() == 'true',
         'stream': os.environ.get('STREAM', 'true').lower() == 'true',
@@ -62,7 +62,6 @@ def main():
         'tts_model': os.environ.get('TTS_MODEL', 'tts-1'),
         'tts_voice': os.environ.get('TTS_VOICE', 'alloy'),
     }
-
     if openai_config['enable_functions'] and not functions_available:
         logging.error(f'ENABLE_FUNCTIONS is set to true, but the model {model} does not support it. '
                         'Please set ENABLE_FUNCTIONS to false or use a model that supports it.')
