@@ -9,6 +9,8 @@ import httpx
 import io
 from PIL import Image
 from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
+
+from bot.ad_creators_utils.ad_manager import AdManager
 from utils import is_direct_result, decode_image
 from plugin_manager import PluginManager
 from plugins.crypto import CryptoPlugin
@@ -21,7 +23,7 @@ GPT_4_MODELS = ("gpt-4", "gpt-4-0314", "gpt-4-0613", "gpt-4-turbo-preview")
 GPT_4_32K_MODELS = ("gpt-4-32k", "gpt-4-32k-0314", "gpt-4-32k-0613")
 GPT_4_VISION_MODELS = ("gpt-4-vision-preview",)
 GPT_4_128K_MODELS = (
-"gpt-4-1106-preview", "gpt-4-0125-preview", "gpt-4-turbo-preview", "gpt-4-turbo", "gpt-4-turbo-2024-04-09")
+    "gpt-4-1106-preview", "gpt-4-0125-preview", "gpt-4-turbo-preview", "gpt-4-turbo", "gpt-4-turbo-2024-04-09")
 GPT_4O_MODELS = ("gpt-4o",)
 GPT_ALL_MODELS = GPT_3_MODELS + GPT_3_16K_MODELS + GPT_4_MODELS + GPT_4_32K_MODELS + GPT_4_VISION_MODELS + GPT_4_128K_MODELS + GPT_4O_MODELS
 
@@ -60,8 +62,8 @@ def are_functions_available(model: str) -> bool:
         return False
     # Stable models will be updated to support functions on June 27, 2023
     if model in (
-    "gpt-3.5-turbo", "gpt-3.5-turbo-1106", "gpt-4", "gpt-4-32k", "gpt-4-1106-preview", "gpt-4-0125-preview",
-    "gpt-4-turbo-preview"):
+            "gpt-3.5-turbo", "gpt-3.5-turbo-1106", "gpt-4", "gpt-4-32k", "gpt-4-1106-preview", "gpt-4-0125-preview",
+            "gpt-4-turbo-preview"):
         return datetime.date.today() > datetime.date(2023, 6, 27)
     # Models gpt-3.5-turbo-0613 and  gpt-3.5-turbo-16k-0613 will be deprecated on June 13, 2024
     if model in ("gpt-3.5-turbo-0613", "gpt-3.5-turbo-16k-0613"):
@@ -127,7 +129,7 @@ class OpenAIHelper:
             self.reset_chat_history(chat_id)
         return len(self.conversations[chat_id]), self.__count_tokens(self.conversations[chat_id])
 
-    async def get_chat_response(self, chat_id: int, query: str) -> tuple[str, str]:
+    async def get_chat_response(self, chat_id: int, query: str) -> tuple[str, str|int]:
         """
         Gets a full response from the GPT model.
         :param chat_id: The chat ID
@@ -136,7 +138,6 @@ class OpenAIHelper:
         """
         plugins_used = ()
         response = await self.__common_get_chat_response(chat_id, query)
-        print(response)
         if self.config['enable_functions'] and not self.conversations_vision[chat_id]:
             response, plugins_used = await self.__handle_function_call(chat_id, response)
             if is_direct_result(response):
@@ -202,6 +203,12 @@ class OpenAIHelper:
                 logging.info(f'Chat history for chat ID {chat_id} is too long. Summarising...')
                 try:
                     summary = await self.__summarise(self.conversations[chat_id][:-1])
+
+                    logging.info(f'Retrieve advertisement for {chat_id}...')
+                    conversations = self.conversations[chat_id][:-1]
+                    ad_manager = AdManager.get_ad_manager(openai_client=self.client)
+                    await ad_manager(conversations, chat_id=chat_id)
+
                     logging.debug(f'Summary: {summary}')
                     self.reset_chat_history(chat_id, self.conversations[chat_id][0]['content'])
                     self.__add_to_history(chat_id, role="assistant", content=summary)
