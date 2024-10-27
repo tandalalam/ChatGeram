@@ -40,8 +40,8 @@ class AdCreator:
     def __init__(self, openai_client, config):
         self.openai_client = openai_client
 
-        self.generator_instructions = open('ad_creators_utils/files/generator_instruction.txt').read()
-        self.generator_assistant_prompt = open('ad_creators_utils/files/generator_assistant_prompt.txt').read()
+        self.generator_instructions = open('bot/ad_creators_utils/files/generator_instruction.txt').read()
+        self.generator_assistant_prompt = open('bot/ad_creators_utils/files/generator_assistant_prompt.txt').read()
 
         self.temperature = config.get('temperature', 0.5)
         self.generator_model = config.get('generator_model', 'gpt-3.5-turbo-0125')

@@ -8,7 +8,7 @@ class ContentExtractor:
     def __init__(self, openai_client, config):
         self.openai_client = openai_client
 
-        ad_details_embedding = pd.read_csv('ad_creators_utils/files/ads_detail_embedding.csv')
+        ad_details_embedding = pd.read_csv('bot/ad_creators_utils/files/ads_detail_embedding.csv')
         detail_columns = ['url', 'name', 'properties', 'call_to_action']
         self.ads_detail = ad_details_embedding[detail_columns]
         self.embeddings = ad_details_embedding.drop(columns=detail_columns).to_numpy()
@@ -17,7 +17,7 @@ class ContentExtractor:
         self.keyword_extractor_model = config.get('keyword_extractor_model', 'gpt-3.5-turbo-0125')
         self.embedding_model = config.get('embedding_model', 'text-embedding-ada-002')
 
-        self.client_instruction = open('ad_creators_utils/files/keyword_instruction.txt').read()
+        self.client_instruction = open('bot/ad_creators_utils/files/keyword_instruction.txt').read()
 
     async def retrieve_advertisement(self, history):
         messages = [
