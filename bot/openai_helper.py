@@ -10,7 +10,7 @@ import io
 from PIL import Image
 from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
 
-from bot.ad_creators_utils.ad_manager import AdManager
+from ad_creators_utils.ad_manager import AdManager
 from utils import is_direct_result, decode_image
 from plugin_manager import PluginManager
 from plugins.crypto import CryptoPlugin
