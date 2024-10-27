@@ -1,7 +1,7 @@
 import logging
 
-from bot.ad_creators_utils.ad_creator import AdCreator
-from bot.ad_creators_utils.content_extractor import ContentExtractor
+from ad_creators_utils.ad_creator import AdCreator
+from ad_creators_utils.content_extractor import ContentExtractor
 
 
 class AdManager:
