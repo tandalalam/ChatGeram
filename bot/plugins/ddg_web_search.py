@@ -11,6 +11,7 @@ class DDGWebSearchPlugin(Plugin):
     """
     A plugin to search the web for a given query, using DuckDuckGo
     """
+
     def __init__(self):
         self.safesearch = os.getenv('DUCKDUCKGO_SAFESEARCH', 'moderate')
 
@@ -64,4 +65,5 @@ class DDGWebSearchPlugin(Plugin):
                     "title": result["title"],
                     "link": result["href"],
                 }
+
             return {"result": [to_metadata(result) for result in results]}

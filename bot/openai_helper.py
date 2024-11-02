@@ -9,11 +9,8 @@ import httpx
 import io
 from PIL import Image
 from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
-
-from ad_creators_utils.ad_manager import AdManager
 from utils import is_direct_result, decode_image
 from plugin_manager import PluginManager
-from plugins.crypto import CryptoPlugin
 
 # Models can be found here: https://platform.openai.com/docs/models/overview
 # Models gpt-3.5-turbo-0613 and  gpt-3.5-turbo-16k-0613 will be deprecated on June 13, 2024
@@ -116,6 +113,7 @@ class OpenAIHelper:
         self.config = config
         self.plugin_manager = plugin_manager
         self.conversations: dict[int: list] = {}  # {chat_id: history}
+        self.advertisement_offset: dict[int, int] = {}
         self.conversations_vision: dict[int: bool] = {}  # {chat_id: is_vision}
         self.last_updated: dict[int: datetime] = {}  # {chat_id: last_update_timestamp}
 
@@ -129,13 +127,14 @@ class OpenAIHelper:
             self.reset_chat_history(chat_id)
         return len(self.conversations[chat_id]), self.__count_tokens(self.conversations[chat_id])
 
-    async def get_chat_response(self, chat_id: int, query: str) -> tuple[str, str|int]:
+    async def get_chat_response(self, chat_id: int, query: str) -> tuple[str, str | int]:
         """
         Gets a full response from the GPT model.
         :param chat_id: The chat ID
         :param query: The query to send to the model
         :return: The answer from the model and the number of tokens used
         """
+        self.add_on_offset(chat_id)
         plugins_used = ()
         response = await self.__common_get_chat_response(chat_id, query)
         if self.config['enable_functions'] and not self.conversations_vision[chat_id]:
@@ -203,12 +202,6 @@ class OpenAIHelper:
                 logging.info(f'Chat history for chat ID {chat_id} is too long. Summarising...')
                 try:
                     summary = await self.__summarise(self.conversations[chat_id][:-1])
-
-                    logging.info(f'Retrieve advertisement for {chat_id}...')
-                    conversations = self.conversations[chat_id][:-1]
-                    ad_manager = AdManager.get_ad_manager(openai_client=self.client)
-                    await ad_manager(conversations, chat_id=chat_id)
-
                     logging.debug(f'Summary: {summary}')
                     self.reset_chat_history(chat_id, self.conversations[chat_id][0]['content'])
                     self.__add_to_history(chat_id, role="assistant", content=summary)
@@ -280,6 +273,15 @@ class OpenAIHelper:
             function_call='auto' if times < self.config['functions_max_consecutive_calls'] else 'none',
         )
         return await self.__handle_function_call(chat_id, response, stream, times + 1, plugins_used)
+
+    def get_recent_conversation(self, chat_id, n):
+        return self.conversations[chat_id][-n:]
+
+    def add_on_offset(self, chat_id):
+        self.advertisement_offset[chat_id] = self.advertisement_offset.get(chat_id, 0) + 1
+
+    def reset_ads(self, chat_id):
+        self.advertisement_offset[chat_id] = 0
 
     def reset_chat_history(self, chat_id, content=''):
         """

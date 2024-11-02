@@ -27,6 +27,7 @@ class PluginManager:
         enabled_plugins = config.get('plugins', [])
         plugin_mapping = {
             'ddg_web_search': DDGWebSearchPlugin,
+            'crypto': CryptoPlugin,
         }
         self.plugins = [plugin_mapping[plugin]() for plugin in enabled_plugins if plugin in plugin_mapping]
 

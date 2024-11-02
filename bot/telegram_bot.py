@@ -17,7 +17,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, \
 from pydub import AudioSegment
 from PIL import Image
 
-from ad_creators_utils.ad_manager import AdManager
+from ad_manager import AdManager
 from utils import is_group_chat, get_thread_id, message_text, wrap_with_indicator, split_into_chunks, \
     edit_message_with_retry, get_stream_cutoff_values, is_allowed, get_remaining_budget, is_admin, is_within_budget, \
     get_reply_to_message_id, add_chat_request_to_usage_tracker, error_handler, is_direct_result, handle_direct_result, \
@@ -290,19 +290,26 @@ class ChatGPTTelegramBot:
 
             await wrap_with_indicator(update, context, _reply, constants.ChatAction.TYPING)
 
-            ad_manager = AdManager.get_ad_manager(openai_client=self.openai.client)
-            advertisement_text = ad_manager.get_ad(chat_id)
-            if advertisement_text:
-                try:
-                    logging.info(advertisement_text)
-                    await update.effective_message.reply_text(
-                        message_thread_id=get_thread_id(update),
-                        reply_to_message_id=get_reply_to_message_id(self.config, update),
-                        text=advertisement_text,
-                        parse_mode=constants.ParseMode.HTML
-                    )
-                except Exception as exception:
-                    logging.error(f'Error happened sending ad in {chat_id}' + str(exception))
+            ad_manager = AdManager.get_ad_manager()
+            if self.openai.advertisement_offset.get(chat_id) >= 2:
+                conversation = self.openai.get_recent_conversation(chat_id=chat_id, n=4)
+                logging.info(conversation)
+            else:
+                conversation = None
+            if conversation:
+                advertisement_text = ad_manager.get_ad(conversations=conversation)
+                print(advertisement_text)
+                if advertisement_text:
+                    try:
+                        await update.effective_message.reply_text(
+                            message_thread_id=get_thread_id(update),
+                            reply_to_message_id=get_reply_to_message_id(self.config, update),
+                            text=advertisement_text,
+                            parse_mode=constants.ParseMode.HTML
+                        )
+                        self.openai.reset_ads(chat_id)
+                    except Exception as exception:
+                        logging.error(f'Error happened sending ad in {chat_id}' + str(exception))
 
             add_chat_request_to_usage_tracker(self.usage, self.config, user_id, total_tokens)
 
@@ -314,7 +321,6 @@ class ChatGPTTelegramBot:
                 text=f"{localized_text('chat_fail', self.config['bot_language'])} {str(e)}",
                 parse_mode=constants.ParseMode.MARKDOWN
             )
-
 
     async def check_allowed_and_within_budget(self, update: Update, context: ContextTypes.DEFAULT_TYPE,
                                               is_inline=False) -> bool:
