@@ -24,7 +24,7 @@ class AdManager:
         headers = {
             'Content-Type': 'application/json'
         }
-        response = requests.request("POST", self.ad_generator_url + '/get_ad', headers=headers, data=payload)
+        response = requests.request("POST", self.ad_generator_url + '/api/get_ad', headers=headers, data=payload)
         try:
             return response.json()['ad']
         except KeyError:
