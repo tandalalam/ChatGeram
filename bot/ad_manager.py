@@ -19,7 +19,7 @@ class AdManager:
 
     def get_ad(self, conversations):
         payload = json.dumps({
-            "conversation": conversations
+            "conversations": conversations
         })
         headers = {
             'Content-Type': 'application/json'

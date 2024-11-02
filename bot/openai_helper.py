@@ -224,8 +224,7 @@ class OpenAIHelper:
             if self.config['enable_functions'] and not self.conversations_vision[chat_id]:
                 functions = self.plugin_manager.get_functions_specs()
                 if len(functions) > 0:
-                    common_args['functions'] = self.plugin_manager.get_functions_specs()
-                    common_args['function_call'] = 'auto'
+                    common_args['tools'] = self.plugin_manager.get_functions_specs()
             return await self.client.chat.completions.create(**common_args)
 
         except openai.RateLimitError as e:
@@ -243,11 +242,9 @@ class OpenAIHelper:
 
         if len(response.choices) > 0:
             first_choice = response.choices[0]
-            if first_choice.message.function_call:
-                if first_choice.message.function_call.name:
-                    function_name += first_choice.message.function_call.name
-                if first_choice.message.function_call.arguments:
-                    arguments += first_choice.message.function_call.arguments
+            if first_choice.finish_reason == 'tool_calls':
+                function_name += response.choices[0].message.tool_calls[0].function.name
+                arguments += response.choices[0].message.tool_calls[0].function.arguments
             else:
                 return response, plugins_used
         else:
@@ -260,17 +257,20 @@ class OpenAIHelper:
             plugins_used += (function_name,)
 
         if is_direct_result(function_response):
-            self.__add_function_call_to_history(chat_id=chat_id, function_name=function_name,
+            self.__add_function_call_to_history(chat_id=chat_id,
+                                                function_name=function_name,
                                                 content=json.dumps({'result': 'Done, the content has been sent'
                                                                               'to the user.'}))
             return function_response, plugins_used
 
-        self.__add_function_call_to_history(chat_id=chat_id, function_name=function_name, content=function_response)
+        self.__add_function_call_to_history(chat_id=chat_id,
+                                            function_name=function_name,
+                                            content=function_response)
         response = await self.client.chat.completions.create(
             model=self.config['model'],
             messages=self.conversations[chat_id],
-            functions=self.plugin_manager.get_functions_specs(),
-            function_call='auto' if times < self.config['functions_max_consecutive_calls'] else 'none',
+            tools=self.plugin_manager.get_functions_specs() if times < self.config[
+                'functions_max_consecutive_calls'] else None,
         )
         return await self.__handle_function_call(chat_id, response, stream, times + 1, plugins_used)
 
@@ -309,7 +309,8 @@ class OpenAIHelper:
         """
         Adds a function call to the conversation history
         """
-        self.conversations[chat_id].append({"role": "function", "name": function_name, "content": content})
+        self.conversations[chat_id].append(
+            {"role": "user", "content": 'این نتایج جست‌وجو است بر این اساس جواب بده:' + content})
 
     def __add_to_history(self, chat_id, role, content):
         """
